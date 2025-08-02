@@ -1,0 +1,7 @@
+.venv
+cart_page_source.html
+cart_screenshot.png
+chromedriver
+
+
+*.code-workspace
