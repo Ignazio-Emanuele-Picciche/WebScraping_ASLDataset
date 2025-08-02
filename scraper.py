@@ -269,58 +269,65 @@ while True:
                     print("Form del carrello trovato.")
 
                     # Trova tutti i pulsanti di download come <button> con name='resource_button' e testo 'Download'
-                    # XPath aggiornato per catturare i button di download
                     download_buttons_xpath = "//button[@name='resource_button' and contains(normalize-space(.), 'Download')]"
-                    # Effettua scroll in fondo e attendi la visibilità di tutti i bottoni Download
-                    driver.execute_script(
-                        "window.scrollTo(0, document.body.scrollHeight);"
-                    )
+
+                    # Attendi che almeno un pulsante di download sia presente
                     wait.until(
-                        EC.visibility_of_all_elements_located(
+                        EC.presence_of_element_located(
                             (By.XPATH, download_buttons_xpath)
                         )
                     )
-                    download_buttons = driver.find_elements(
-                        By.XPATH, download_buttons_xpath
+
+                    # Trova il numero totale di pulsanti di download
+                    num_download_buttons = len(
+                        driver.find_elements(By.XPATH, download_buttons_xpath)
                     )
 
-                    if not download_buttons:
+                    if num_download_buttons == 0:
                         raise TimeoutException(
                             "Nessun pulsante di download trovato con l'XPath specificato."
                         )
 
                     print(
-                        f"Trovati {len(download_buttons)} pulsanti di download nel carrello."
+                        f"Trovati {num_download_buttons} pulsanti di download nel carrello."
                     )
 
                     # Clicca su ogni pulsante di download
-                    for index in range(len(download_buttons)):
+                    for index in range(num_download_buttons):
                         try:
-                            # È necessario ritrovare gli elementi ad ogni ciclo perché la pagina potrebbe ricaricarsi
+                            # Ritrova tutti i pulsanti ad ogni iterazione per evitare StaleElementReferenceException
                             buttons = driver.find_elements(
                                 By.XPATH, download_buttons_xpath
                             )
+                            button_to_click = buttons[index]
+
                             print(
-                                f"Cliccando sul pulsante di download {index + 1}/{len(download_buttons)}..."
+                                f"Cliccando sul pulsante di download {index + 1}/{num_download_buttons}..."
                             )
-                            # Aggiungi uno scroll into view per assicurarti che il pulsante sia visibile
+
+                            # Scorri fino al pulsante per assicurarti che sia visibile
                             driver.execute_script(
-                                "arguments[0].scrollIntoView(true);", buttons[index]
+                                "arguments[0].scrollIntoView({block: 'center'});",
+                                button_to_click,
                             )
-                            time.sleep(1)
-                            buttons[index].click()
+
+                            # Attendi che il pulsante specifico sia cliccabile
+                            wait.until(EC.element_to_be_clickable(button_to_click))
+
+                            button_to_click.click()
+
                             print(f"Download {index + 1} avviato.")
-                            # Aumenta il tempo di attesa per consentire il download
-                            time.sleep(10)
+                            # Attendi un po' per permettere l'avvio del download
+                            time.sleep(5)
                         except Exception as e:
                             print(
                                 f"Errore cliccando il pulsante di download {index + 1}: {e}"
                             )
 
                     print(
-                        f"Tutti i download per '{sign_name}' sono stati avviati. Attendi 20 secondi..."
+                        f"Tutti i download per '{sign_name}' sono stati avviati. Attendi 10 secondi..."
                     )
-                    time.sleep(20)
+                    time.sleep(10)
 
                 except TimeoutException:
                     print(
