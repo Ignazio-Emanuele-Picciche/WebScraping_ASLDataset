@@ -262,12 +262,8 @@ while True:
 
                 try:
                     print("Navigazione alla pagina del carrello...")
-                    driver.get(CART_URL)  # Naviga direttamente al carrello
-
-                    print(
-                        "Attendo di vedere l'intestazione della colonna di download..."
-                    )
-                    # Attendiamo l'intestazione della colonna che conferma che la tabella è presente
+                    # È buona norma attendere un elemento specifico della pagina del carrello
+                    # per assicurarsi che sia completamente caricata.
                     wait.until(
                         EC.visibility_of_element_located(
                             (
@@ -276,78 +272,93 @@ while True:
                             )
                         )
                     )
-                    print(
-                        "Intestazione della tabella trovata. Procedo con il download."
-                    )
+                    print("Pagina del carrello caricata correttamente.")
 
+                    # --- CORREZIONE CHIAVE: XPath aggiornato ---
+                    # I pulsanti sono <input type="submit">, non <button>.
+                    # Questo selettore trova l'ultima cella (td) di ogni riga (tr) e cerca l'input corretto al suo interno.
                     download_buttons_xpath = (
                         "//tr/td[last()]//input[@type='submit' and @value='Download']"
                     )
 
-                    # Attendi che i pulsanti siano presenti
-                    buttons = wait.until(
-                        EC.presence_of_all_elements_located(
+                    # Attendi che almeno un pulsante di download sia visibile
+                    wait.until(
+                        EC.presence_of_element_located(
                             (By.XPATH, download_buttons_xpath)
                         )
                     )
-                    num_download_buttons = len(buttons)
 
-                    if num_download_buttons == 0:
-                        print(
-                            "La tabella del carrello è visibile ma non sono stati trovati pulsanti di download."
-                        )
-                    else:
-                        print(f"Trovati {num_download_buttons} pulsanti di download.")
-                        # Itera per cliccare e scaricare
-                        for index in range(num_download_buttons):
-                            # Ritrova sempre i pulsanti prima di ogni click per sicurezza
-                            all_buttons = driver.find_elements(
-                                By.XPATH, download_buttons_xpath
-                            )
-                            button_to_click = all_buttons[index]
-                            try:
-                                print(
-                                    f"Tentativo di clic sul pulsante {index + 1}/{num_download_buttons}..."
-                                )
-                                driver.execute_script(
-                                    "arguments[0].scrollIntoView({block: 'center'});",
-                                    button_to_click,
-                                )
-                                time.sleep(1)
-                                driver.execute_script(
-                                    "arguments[0].click();", button_to_click
-                                )
-                                print(f"Download {index + 1} avviato.")
-                                time.sleep(5)
-                            except Exception as e:
-                                print(
-                                    f"Errore durante il click sul pulsante di download {index + 1}: {e}"
-                                )
-
-                except TimeoutException:
-                    # --- BLOCCO DIAGNOSTICO ---
-                    # QUESTA È LA PARTE PIÙ IMPORTANTE ORA
-                    print("\nERRORE DI TIMEOUT: L'elemento atteso non è stato trovato.")
-                    print("La causa più probabile è che il carrello fosse vuoto.")
-                    print("Salvataggio delle informazioni di debug per analisi...")
-
-                    screenshot_file = "debug_screenshot_carrello.png"
-                    html_file = "debug_pagina_carrello.html"
-
-                    # Salva screenshot
-                    driver.save_screenshot(screenshot_file)
-                    print(f" -> Screenshot salvato. Apri il file: '{screenshot_file}'")
-
-                    # Salva HTML
-                    with open(html_file, "w", encoding="utf-8") as f:
-                        f.write(driver.page_source)
-                    print(f" -> Codice HTML salvato. Apri il file: '{html_file}'")
-                    print(
-                        "Analizza questi due file per confermare cosa vede lo script.\n"
+                    # Trova il numero totale di pulsanti di download
+                    num_download_buttons = len(
+                        driver.find_elements(By.XPATH, download_buttons_xpath)
                     )
 
+                    if num_download_buttons == 0:
+                        raise TimeoutException(
+                            "Nessun pulsante di download trovato nel carrello."
+                        )
+
+                    print(f"Trovati {num_download_buttons} pulsanti di download.")
+
+                    # Itera usando un indice per evitare problemi di elementi 'stale' (StaleElementReferenceException)
+                    for index in range(num_download_buttons):
+                        try:
+                            # Ritrova tutti i pulsanti ad ogni iterazione, poiché la pagina potrebbe
+                            # ricaricarsi o cambiare dopo un'azione.
+                            buttons = wait.until(
+                                EC.presence_of_all_elements_located(
+                                    (By.XPATH, download_buttons_xpath)
+                                )
+                            )
+
+                            # Seleziona il pulsante corretto per questa iterazione
+                            button_to_click = buttons[index]
+
+                            print(
+                                f"Tentativo di clic sul pulsante di download {index + 1}/{num_download_buttons}..."
+                            )
+
+                            # Scorri fino al pulsante per assicurarti che sia visibile
+                            driver.execute_script(
+                                "arguments[0].scrollIntoView({block: 'center'});",
+                                button_to_click,
+                            )
+                            time.sleep(
+                                1
+                            )  # Piccola pausa per la stabilizzazione dello scroll
+
+                            # --- MIGLIORAMENTO: Click più affidabile con JavaScript ---
+                            # Questo metodo è spesso più robusto di un .click() standard
+                            driver.execute_script(
+                                "arguments[0].click();", button_to_click
+                            )
+
+                            print(f"Download {index + 1} avviato con successo.")
+
+                            # Attendi un po' per permettere l'avvio del download prima di procedere
+                            time.sleep(5)
+
+                        except Exception as e:
+                            print(
+                                f"Errore durante il click sul pulsante di download {index + 1}: {e}"
+                            )
+                            # Potresti voler aggiungere qui una logica per gestire l'errore,
+                            # ad esempio continuando con il pulsante successivo.
+                            continue
+
+                    print(
+                        f"Tutti i {num_download_buttons} download sono stati avviati. Attendi 10 secondi..."
+                    )
+                    time.sleep(10)
+
+                except TimeoutException:
+                    print(
+                        "Errore: La pagina del carrello o i pulsanti di download non sono stati trovati entro il tempo limite."
+                    )
                 except Exception as e:
-                    print(f"Si è verificato un errore imprevisto: {e}")
+                    print(
+                        f"Si è verificato un errore imprevisto durante il processo di download: {e}"
+                    )
 
             except (TimeoutException, NoSuchElementException) as e:
                 print(f"     Errore durante il processo per '{sign_name}': {e}")
