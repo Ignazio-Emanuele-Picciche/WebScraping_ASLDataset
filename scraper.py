@@ -255,24 +255,32 @@ while True:
 
                 # 4. Vai al carrello e scarica
                 print(f"--- Navigazione al carrello per scaricare '{sign_name}' ---")
-                driver.get(CART_URL)
+                # Clicca sul pulsante per andare al carrello invece di usare driver.get()
+                # Questo può aiutare a mantenere lo stato della sessione.
+                go_to_cart_button = wait.until(
+                    EC.element_to_be_clickable(
+                        (By.XPATH, "/html/body/div[2]/table[2]/tbody/tr[4]/td/input[1]")
+                    )
+                )
+                go_to_cart_button.click()
+
                 time.sleep(
                     2
                 )  # Aggiungi un piccolo ritardo per il caricamento della pagina
                 try:
-                    # Attendi che la tabella principale del carrello sia visibile
+                    # Attendi che il form del carrello specifico sia presente
                     wait.until(
-                        EC.visibility_of_element_located(
-                            (By.XPATH, "//*[@id='main']/form")
-                        )
+                        EC.presence_of_element_located((By.NAME, "downloadcartform"))
                     )
-                    print("Form del carrello trovato.")
+                    print("Form del carrello (downloadcartform) trovato.")
 
-                    # Trova tutti i pulsanti di download usando un XPath più robusto
-                    download_buttons_xpath = "//button[contains(., 'Download')]"
+                    # Attendi che i pulsanti di download appaiano nel form del carrello
                     download_buttons = wait.until(
                         EC.presence_of_all_elements_located(
-                            (By.XPATH, download_buttons_xpath)
+                            (
+                                By.CSS_SELECTOR,
+                                "form[name=downloadcartform] button[name=resource_button]",
+                            )
                         )
                     )
 
@@ -311,9 +319,10 @@ while True:
                             print(
                                 f"Errore cliccando il pulsante di download {index + 1}: {e}"
                             )
-                            # Se si verifica un errore, ritrova i pulsanti per evitare StaleElementReferenceException
+                            # Se si verifica un errore, ritrova i pulsanti tramite selettore CSS per evitare StaleElementReferenceException
                             download_buttons = driver.find_elements(
-                                By.XPATH, download_buttons_xpath
+                                By.CSS_SELECTOR,
+                                "form[name=downloadcartform] button[name=resource_button]",
                             )
 
                     print(
