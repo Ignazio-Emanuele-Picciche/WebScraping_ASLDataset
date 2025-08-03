@@ -268,53 +268,41 @@ while True:
                     )
                     print("Form del carrello trovato.")
 
-                    # Trova tutti i pulsanti di download come <button> con name='resource_button' e testo 'Download'
-                    download_buttons_xpath = "//button[@name='resource_button' and contains(normalize-space(.), 'Download')]"
-
-                    # Attendi che almeno un pulsante di download sia presente
-                    wait.until(
-                        EC.presence_of_element_located(
+                    # Trova tutti i pulsanti di download usando un XPath più robusto
+                    download_buttons_xpath = "//button[contains(., 'Download')]"
+                    download_buttons = wait.until(
+                        EC.presence_of_all_elements_located(
                             (By.XPATH, download_buttons_xpath)
                         )
                     )
 
-                    # Trova il numero totale di pulsanti di download
-                    num_download_buttons = len(
-                        driver.find_elements(By.XPATH, download_buttons_xpath)
-                    )
-
-                    if num_download_buttons == 0:
+                    if not download_buttons:
                         raise TimeoutException(
-                            "Nessun pulsante di download trovato con l'XPath specificato."
+                            "Nessun pulsante di download trovato nel carrello."
                         )
 
                     print(
-                        f"Trovati {num_download_buttons} pulsanti di download nel carrello."
+                        f"Trovati {len(download_buttons)} pulsanti di download nel carrello."
                     )
 
                     # Clicca su ogni pulsante di download
-                    for index in range(num_download_buttons):
+                    for index, button in enumerate(download_buttons):
                         try:
-                            # Ritrova tutti i pulsanti ad ogni iterazione per evitare StaleElementReferenceException
-                            buttons = driver.find_elements(
-                                By.XPATH, download_buttons_xpath
-                            )
-                            button_to_click = buttons[index]
-
                             print(
-                                f"Cliccando sul pulsante di download {index + 1}/{num_download_buttons}..."
+                                f"Cliccando sul pulsante di download {index + 1}/{len(download_buttons)}..."
                             )
 
                             # Scorri fino al pulsante per assicurarti che sia visibile
                             driver.execute_script(
                                 "arguments[0].scrollIntoView({block: 'center'});",
-                                button_to_click,
+                                button,
                             )
+                            time.sleep(1)  # Pausa per lo scroll
 
                             # Attendi che il pulsante specifico sia cliccabile
-                            wait.until(EC.element_to_be_clickable(button_to_click))
+                            wait.until(EC.element_to_be_clickable(button))
 
-                            button_to_click.click()
+                            button.click()
 
                             print(f"Download {index + 1} avviato.")
                             # Attendi un po' per permettere l'avvio del download
@@ -322,6 +310,10 @@ while True:
                         except Exception as e:
                             print(
                                 f"Errore cliccando il pulsante di download {index + 1}: {e}"
+                            )
+                            # Se si verifica un errore, ritrova i pulsanti per evitare StaleElementReferenceException
+                            download_buttons = driver.find_elements(
+                                By.XPATH, download_buttons_xpath
                             )
 
                     print(
