@@ -328,7 +328,7 @@ while True:
                     print(
                         f"Tutti i download per '{sign_name}' sono stati avviati. Attendi 10 secondi..."
                     )
-                    time.sleep(10)
+                    time.sleep(500)
 
                 except TimeoutException:
                     print(
