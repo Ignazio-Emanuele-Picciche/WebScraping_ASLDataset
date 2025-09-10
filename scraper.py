@@ -217,6 +217,9 @@ while True:
                         "Pulsante 'clear collection' non trovato o non cliccabile. Forse il carrello era già vuoto."
                     )
 
+                # Flag per sapere se abbiamo trovato qualcosa da scaricare
+                items_found = False
+
                 # 3. Aggiungi tutte le occorrenze al carrello
                 occ_page = 1
                 while True:
@@ -233,6 +236,13 @@ while True:
                         By.XPATH, "//input[@type='checkbox']"
                     )
                     print(f"     Trovate {len(checkboxes)} checkbox da selezionare.")
+
+                    # Se non ci sono checkbox, esci dal ciclo delle occorrenze
+                    if not checkboxes:
+                        print("     Nessuna checkbox trovata per questo segno. Passo al successivo.")
+                        break # Esce dal ciclo while delle pagine di occorrenze
+
+                    items_found = True # Abbiamo trovato qualcosa!
                     for checkbox in checkboxes:
                         if not checkbox.is_selected():
                             checkbox.click()
@@ -262,110 +272,120 @@ while True:
                         print("     Finite le pagine di occorrenze per questo segno.")
                         break
 
-                # 4. Vai al carrello e scarica
-                print(f"--- Navigazione al carrello per scaricare '{sign_name}' ---")
-                # Clicca sul pulsante per andare al carrello invece di usare driver.get()
-                # Questo può aiutare a mantenere lo stato della sessione.
-                go_to_cart_button = wait.until(
-                    EC.element_to_be_clickable(
-                        (By.XPATH, "/html/body/div[2]/table[2]/tbody/tr[4]/td/input[1]")
-                    )
-                )
-                go_to_cart_button.click()
-
-                time.sleep(
-                    2
-                )  # Aggiungi un piccolo ritardo per il caricamento della pagina
-                try:
-                    # Attendi che il form del carrello specifico sia presente
-                    wait.until(
-                        EC.presence_of_element_located((By.NAME, "downloadcartform"))
-                    )
-                    print("Form del carrello (downloadcartform) trovato.")
-
-                    # Attendi che i pulsanti di download appaiano nel form del carrello
-                    download_buttons = wait.until(
-                        EC.presence_of_all_elements_located(
-                            (
-                                By.CSS_SELECTOR,
-                                "form[name=downloadcartform] button[name=resource_button]",
-                            )
+                # Se non è stato trovato nessun item, non andare al carrello.
+                # Salta direttamente al blocco finally per tornare indietro.
+                if not items_found:
+                    print(f"--- Nessun item da scaricare per '{sign_name}'. Si torna indietro. ---")
+                    # L'uso di 'continue' qui non funzionerebbe perché siamo dentro un try.
+                    # Lasciamo che il codice proceda al blocco finally.
+                else:
+                    # 4. Vai al carrello e scarica
+                    print(f"--- Navigazione al carrello per scaricare '{sign_name}' ---")
+                    # Clicca sul pulsante per andare al carrello invece di usare driver.get()
+                    # Questo può aiutare a mantenere lo stato della sessione.
+                    go_to_cart_button = wait.until(
+                        EC.element_to_be_clickable(
+                            (By.XPATH, "/html/body/div[2]/table[2]/tbody/tr[4]/td/input[1]")
                         )
                     )
+                    go_to_cart_button.click()
 
-                    if not download_buttons:
-                        raise TimeoutException(
-                            "Nessun pulsante di download trovato nel carrello."
+                    time.sleep(
+                        2
+                    )  # Aggiungi un piccolo ritardo per il caricamento della pagina
+                    try:
+                        # Attendi che il form del carrello specifico sia presente
+                        wait.until(
+                            EC.presence_of_element_located((By.NAME, "downloadcartform"))
+                        )
+                        print("Form del carrello (downloadcartform) trovato.")
+
+                        # Attendi che i pulsanti di download appaiano nel form del carrello
+                        download_buttons = wait.until(
+                            EC.presence_of_all_elements_located(
+                                (
+                                    By.CSS_SELECTOR,
+                                    "form[name=downloadcartform] button[name=resource_button]",
+                                )
+                            )
                         )
 
-                    print(
-                        f"Trovati {len(download_buttons)} pulsanti di download nel carrello."
-                    )
-                    
-                    num_downloads = len(download_buttons)
-                    base_selector = "form[name=downloadcartform] button[name=resource_button]"
-
-                    # Itera su ogni pulsante usando un indice
-                    for i in range(num_downloads):
-                        try:
-                            print(
-                                f"Tentativo di download {i + 1}/{num_downloads}..."
+                        if not download_buttons:
+                            raise TimeoutException(
+                                "Nessun pulsante di download trovato nel carrello."
                             )
-                            
-                            # Ad ogni iterazione, ricarica la lista di tutti i pulsanti
-                            # per evitare problemi di elementi "stantii" (stale)
-                            all_buttons = wait.until(
-                                EC.presence_of_all_elements_located((By.CSS_SELECTOR, base_selector))
-                            )
-                            
-                            # Seleziona il pulsante specifico per questa iterazione
-                            download_button = all_buttons[i]
 
-                            # Scorri fino al pulsante per assicurarti che sia visibile
-                            driver.execute_script(
-                                "arguments[0].scrollIntoView({block: 'center'});",
-                                download_button,
-                            )
-                            time.sleep(1)
+                        print(
+                            f"Trovati {len(download_buttons)} pulsanti di download nel carrello."
+                        )
+                        
+                        num_downloads = len(download_buttons)
+                        base_selector = "form[name=downloadcartform] button[name=resource_button]"
 
-                            # Clicca il pulsante
-                            download_button.click()
+                        # Itera su ogni pulsante usando un indice
+                        for i in range(num_downloads):
+                            try:
+                                print(
+                                    f"Tentativo di download {i + 1}/{num_downloads}..."
+                                )
+                                
+                                # Ad ogni iterazione, ricarica la lista di tutti i pulsanti
+                                # per evitare problemi di elementi "stantii" (stale)
+                                all_buttons = wait.until(
+                                    EC.presence_of_all_elements_located((By.CSS_SELECTOR, base_selector))
+                                )
+                                
+                                # Seleziona il pulsante specifico per questa iterazione
+                                download_button = all_buttons[i]
 
-                            print(f"Download {i + 1} avviato.")
-                            # Attendi che la pagina si stabilizzi e il download parta
-                            time.sleep(5) 
+                                # Scorri fino al pulsante per assicurarti che sia visibile
+                                driver.execute_script(
+                                    "arguments[0].scrollIntoView({block: 'center'});",
+                                    download_button,
+                                )
+                                time.sleep(1)
 
-                        except Exception as e:
-                            print(
-                                f"Errore durante il tentativo di download {i + 1}: {e}"
-                            )
-                            print("Provo con il prossimo pulsante...")
-                            continue
+                                # Clicca il pulsante
+                                download_button.click()
 
-                    print(
-                        f"Tutti i download per '{sign_name}' sono stati avviati. Attendi 10 secondi..."
-                    )
-                    time.sleep(10) # Ridotto il tempo di attesa
+                                print(f"Download {i + 1} avviato.")
+                                # Attendi che la pagina si stabilizzi e il download parta
+                                time.sleep(5) 
 
-                except TimeoutException:
-                    print(
-                        f"ERRORE: Impossibile trovare pulsanti di download nel carrello per '{sign_name}'."
-                    )
-                    # --- DEBUGGING ---
-                    screenshot_path = "cart_screenshot.png"
-                    source_path = "cart_page_source.html"
-                    driver.save_screenshot(screenshot_path)
-                    with open(source_path, "w", encoding="utf-8") as f:
-                        f.write(driver.page_source)
-                    print(f"Screenshot salvato in: {screenshot_path}")
-                    print(f"Codice sorgente della pagina salvato in: {source_path}")
-                    # --- FINE DEBUGGING ---
+                            except Exception as e:
+                                print(
+                                    f"Errore durante il tentativo di download {i + 1}: {e}"
+                                )
+                                print("Provo con il prossimo pulsante...")
+                                continue
+
+                        print(
+                            f"Tutti i download per '{sign_name}' sono stati avviati. Attendi 10 secondi..."
+                        )
+                        time.sleep(10) # Ridotto il tempo di attesa
+
+                    except TimeoutException:
+                        print(
+                            f"ERRORE: Impossibile trovare pulsanti di download nel carrello per '{sign_name}'."
+                        )
+                        # --- DEBUGGING ---
+                        screenshot_path = "cart_screenshot.png"
+                        source_path = "cart_page_source.html"
+                        driver.save_screenshot(screenshot_path)
+                        with open(source_path, "w", encoding="utf-8") as f:
+                            f.write(driver.page_source)
+                        print(f"Screenshot salvato in: {screenshot_path}")
+                        print(f"Codice sorgente della pagina salvato in: {source_path}")
+                        # --- FINE DEBUGGING ---
 
             except (TimeoutException, NoSuchElementException) as e:
                 print(f"     Errore durante il processo per '{sign_name}': {e}")
+                # Un errore qui è considerato come una fine del processo per questo segno.
+                # Il blocco finally si occuperà di tornare indietro.
+                pass
 
             finally:
-                # 5. Torna alla pagina dei risultati e riesegui la ricerca
+                # 5. Torna alla pagina dei risultati per la prossima iterazione del ciclo FOR
                 print("Tornando alla pagina dei risultati...")
                 driver.get(START_URL) # Torna alla pagina di ricerca iniziale
 
@@ -396,9 +416,11 @@ while True:
                 except Exception as ex:
                     print(f"ERRORE CRITICO nel tornare alla pagina dei risultati: {ex}")
                     # Se questo blocco fallisce, non possiamo continuare.
-                    # Forziamo l'uscita dal ciclo while principale.
-                    # Assegnamo a page_number un valore che interromperà il ciclo.
-                    page_number = -1 # Segnale per interrompere
+                    page_number = -1 # Segnale per interrompere il ciclo while esterno
+
+        # Se page_number è stato impostato a -1, esci anche dal ciclo while
+        if page_number == -1:
+            break
 
     except TimeoutException:
         print(
