@@ -365,44 +365,40 @@ while True:
                 print(f"     Errore durante il processo per '{sign_name}': {e}")
 
             finally:
-                # 5. Torna alla pagina dei risultati per il prossimo ciclo
+                # 5. Torna alla pagina dei risultati e riesegui la ricerca
                 print("Tornando alla pagina dei risultati...")
-                driver.get(START_URL)
-                # Esegui di nuovo la ricerca per tornare allo stato precedente
-                print("Rieseguendo la ricerca per tornare alla lista...")
-                submit_button = wait.until(
-                    EC.element_to_be_clickable((By.XPATH, "//button[@type='submit']"))
-                )
-                driver.execute_script(
-                    "arguments[0].scrollIntoView(true);", submit_button
-                )
-                time.sleep(1)
-                submit_button.click()
+                driver.get(START_URL) # Torna alla pagina di ricerca iniziale
 
-                # Se eravamo in una pagina > 1, dobbiamo navigare di nuovo a quella pagina
-                if page_number > 1:
-                    for p in range(1, page_number):
-                        try:
-                            next_page_link = wait.until(
-                                EC.element_to_be_clickable(
-                                    (By.XPATH, "//a[text()='>']")
-                                )
-                            )
-                            print(f"Tornando alla pagina {p + 1}...")
-                            next_page_link.click()
-                            wait.until(
-                                EC.presence_of_element_located(
-                                    (By.XPATH, "//*[@id='main']/table//a")
-                                )
-                            )
-                        except TimeoutException:
-                            print(f"Timeout: Impossibile tornare alla pagina {p + 1}.")
-                            break
+                try:
+                    # Riesegui la ricerca per visualizzare la lista dei risultati
+                    print("Rieseguendo la ricerca per tornare alla lista...")
+                    submit_button = wait.until(
+                        EC.element_to_be_clickable((By.XPATH, "//button[contains(@class, 'btn-success')]"))
+                    )
+                    driver.execute_script("arguments[0].scrollIntoView(true);", submit_button)
+                    time.sleep(1)
+                    submit_button.click()
 
-                print(f"Tornato alla pagina dei risultati {page_number}.")
-                wait.until(
-                    EC.presence_of_element_located((By.XPATH, "//*[@id='main']/table"))
-                )
+                    # Se eravamo su una pagina > 1, naviga fino a quella pagina
+                    if page_number > 1:
+                        print(f"Navigando di nuovo alla pagina {page_number}...")
+                        for p in range(2, page_number + 1):
+                            next_p_link = wait.until(EC.element_to_be_clickable((By.XPATH, f"//a[text()='{p}']")))
+                            next_p_link.click()
+                            time.sleep(1) # Attendi caricamento pagina
+
+                    # Attendi che la tabella dei risultati sia di nuovo visibile
+                    wait.until(
+                        EC.presence_of_element_located((By.XPATH, "//*[@id='main']/table//a"))
+                    )
+                    print(f"Tornato alla pagina dei risultati {page_number}.")
+
+                except Exception as ex:
+                    print(f"ERRORE CRITICO nel tornare alla pagina dei risultati: {ex}")
+                    # Se questo blocco fallisce, non possiamo continuare.
+                    # Forziamo l'uscita dal ciclo while principale.
+                    # Assegnamo a page_number un valore che interromperà il ciclo.
+                    page_number = -1 # Segnale per interrompere
 
     except TimeoutException:
         print(
