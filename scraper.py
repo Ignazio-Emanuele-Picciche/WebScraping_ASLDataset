@@ -233,7 +233,7 @@ while True:
                     )
 
                     checkboxes = driver.find_elements(
-                        By.XPATH, "//input[@type='checkbox']"
+                        By.XPATH, "//input[@type='checkbox' and not(@disabled)]"
                     )
                     print(f"     Trovate {len(checkboxes)} checkbox da selezionare.")
 
