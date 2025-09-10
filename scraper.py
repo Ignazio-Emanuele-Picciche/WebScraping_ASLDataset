@@ -17,10 +17,10 @@ CART_URL = "https://dai.cs.rutgers.edu/dai/s/cart?redirect=dai"
 
 # Specifica il percorso del chromedriver.
 # Questo codice presume che 'chromedriver' si trovi nella stessa cartella dello script.
-service = ChromeService(executable_path='./chromedriver')
+# service = ChromeService(executable_path='./chromedriver') # Rimuovi o commenta questa riga
 
 # Seleziona il tuo browser. Assicurati di avere il WebDriver corrispondente.
-driver = webdriver.Chrome(service=service)
+driver = webdriver.Chrome(executable_path='./chromedriver')
 wait = WebDriverWait(driver, 20)
 
 driver.get(START_URL)
@@ -301,43 +301,51 @@ while True:
                     print(
                         f"Trovati {len(download_buttons)} pulsanti di download nel carrello."
                     )
+                    
+                    num_downloads = len(download_buttons)
+                    base_selector = "form[name=downloadcartform] button[name=resource_button]"
 
-                    # Clicca su ogni pulsante di download
-                    for index, button in enumerate(download_buttons):
+                    # Itera su ogni pulsante usando un indice
+                    for i in range(num_downloads):
                         try:
                             print(
-                                f"Cliccando sul pulsante di download {index + 1}/{len(download_buttons)}..."
+                                f"Tentativo di download {i + 1}/{num_downloads}..."
                             )
+                            
+                            # Ad ogni iterazione, ricarica la lista di tutti i pulsanti
+                            # per evitare problemi di elementi "stantii" (stale)
+                            all_buttons = wait.until(
+                                EC.presence_of_all_elements_located((By.CSS_SELECTOR, base_selector))
+                            )
+                            
+                            # Seleziona il pulsante specifico per questa iterazione
+                            download_button = all_buttons[i]
 
                             # Scorri fino al pulsante per assicurarti che sia visibile
                             driver.execute_script(
                                 "arguments[0].scrollIntoView({block: 'center'});",
-                                button,
+                                download_button,
                             )
-                            time.sleep(1)  # Pausa per lo scroll
+                            time.sleep(1)
 
-                            # Attendi che il pulsante specifico sia cliccabile
-                            wait.until(EC.element_to_be_clickable(button))
+                            # Clicca il pulsante
+                            download_button.click()
 
-                            button.click()
+                            print(f"Download {i + 1} avviato.")
+                            # Attendi che la pagina si stabilizzi e il download parta
+                            time.sleep(5) 
 
-                            print(f"Download {index + 1} avviato.")
-                            # Attendi un po' per permettere l'avvio del download
-                            time.sleep(5)
                         except Exception as e:
                             print(
-                                f"Errore cliccando il pulsante di download {index + 1}: {e}"
+                                f"Errore durante il tentativo di download {i + 1}: {e}"
                             )
-                            # Se si verifica un errore, ritrova i pulsanti tramite selettore CSS per evitare StaleElementReferenceException
-                            download_buttons = driver.find_elements(
-                                By.CSS_SELECTOR,
-                                "form[name=downloadcartform] button[name=resource_button]",
-                            )
+                            print("Provo con il prossimo pulsante...")
+                            continue
 
                     print(
                         f"Tutti i download per '{sign_name}' sono stati avviati. Attendi 10 secondi..."
                     )
-                    time.sleep(500)
+                    time.sleep(10) # Ridotto il tempo di attesa
 
                 except TimeoutException:
                     print(
