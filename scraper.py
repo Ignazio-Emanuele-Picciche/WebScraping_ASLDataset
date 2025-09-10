@@ -6,6 +6,7 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import NoSuchElementException, TimeoutException
+from selenium.webdriver.chrome.service import Service as ChromeService
 import time
 
 # --- Configurazione Iniziale ---
@@ -14,8 +15,12 @@ import time
 START_URL = "https://dai.cs.rutgers.edu/dai/s/dai"
 CART_URL = "https://dai.cs.rutgers.edu/dai/s/cart?redirect=dai"
 
+# Specifica il percorso del chromedriver.
+# Questo codice presume che 'chromedriver' si trovi nella stessa cartella dello script.
+service = ChromeService(executable_path='./chromedriver')
+
 # Seleziona il tuo browser. Assicurati di avere il WebDriver corrispondente.
-driver = webdriver.Chrome()
+driver = webdriver.Chrome(service=service)
 wait = WebDriverWait(driver, 20)
 
 driver.get(START_URL)
@@ -245,11 +250,15 @@ while True:
 
                     try:
                         occ_page += 1
-                        next_occ_link = driver.find_element(
-                            By.XPATH, f"//a[text()='{occ_page}']"
+                        # Attendi che il link alla pagina successiva delle occorrenze sia cliccabile
+                        next_occ_link = wait.until(
+                            EC.element_to_be_clickable(
+                                (By.XPATH, f"//a[text()='{occ_page}']")
+                            )
                         )
                         next_occ_link.click()
-                    except NoSuchElementException:
+                    except TimeoutException:
+                        # Non ci sono più pagine di occorrenze
                         print("     Finite le pagine di occorrenze per questo segno.")
                         break
 
